@@ -1,44 +1,80 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import MetricCard from './components/MetricCard';
-import ECGWaveform from './components/ECGWaveform';
+import LoginForm from './components/LoginForm';
 
 interface HealthMetrics {
   heartRate: number;
   oxygenLevel: number;
   respiratoryRate: number;
+  perfusionIndex: number;
+}
+
+interface UserData {
+  fullName: string;
+  age: string;
+  gender: string;
+  nic: string;
 }
 
 export default function Home() {
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [userData, setUserData] = useState<UserData | null>(null);
   const [metrics, setMetrics] = useState<HealthMetrics>({
     heartRate: 72,
     oxygenLevel: 98,
-    respiratoryRate: 16
+    respiratoryRate: 16,
+    perfusionIndex: 4.5,
   });
 
-  const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
-  const [mounted, setMounted] = useState(false);
+  const handleLogin = (data: UserData) => {
+    setUserData(data);
+    setIsLoggedIn(true);
+    localStorage.setItem('userLoginData', JSON.stringify(data));
+  };
 
-  // Simulate real-time data updates
+  const handleLogout = () => {
+    setIsLoggedIn(false);
+    setUserData(null);
+    localStorage.removeItem('userLoginData');
+  };
+
   useEffect(() => {
-    setMounted(true);
+    const storedData = localStorage.getItem('userLoginData');
+    if (storedData) {
+      try {
+        const parsedData = JSON.parse(storedData);
+        setUserData(parsedData);
+        setIsLoggedIn(true);
+      } catch (error) {
+        console.error('Error loading user data:', error);
+        localStorage.removeItem('userLoginData');
+      }
+    }
+  }, []);
+
+  useEffect(() => {
     const interval = setInterval(() => {
       setMetrics({
         heartRate: Math.floor(Math.random() * (85 - 60) + 60),
         oxygenLevel: Math.floor(Math.random() * (100 - 95) + 95),
-        respiratoryRate: Math.floor(Math.random() * (20 - 12) + 12)
+        respiratoryRate: Math.floor(Math.random() * (20 - 12) + 12),
+        perfusionIndex: Math.random() * (10 - 2) + 2,
       });
-      setLastUpdated(new Date());
-    }, 3000); // Update every 3 seconds
+    }, 3000);
 
     return () => clearInterval(interval);
   }, []);
 
-  // Determine status based on values
+  if (!isLoggedIn) {
+    return <LoginForm onSubmit={handleLogin} />;
+  }
+
   const getHeartRateStatus = (hr: number): 'normal' | 'warning' | 'critical' => {
     if (hr >= 60 && hr <= 100) return 'normal';
-    if (hr >= 50 && hr < 60 || hr > 100 && hr <= 120) return 'warning';
+    if ((hr >= 50 && hr < 60) || (hr > 100 && hr <= 120)) return 'warning';
     return 'critical';
   };
 
@@ -50,125 +86,122 @@ export default function Home() {
 
   const getRespiratoryStatus = (rr: number): 'normal' | 'warning' | 'critical' => {
     if (rr >= 12 && rr <= 20) return 'normal';
-    if (rr >= 10 && rr < 12 || rr > 20 && rr <= 25) return 'warning';
+    if ((rr >= 10 && rr < 12) || (rr > 20 && rr <= 25)) return 'warning';
+    return 'critical';
+  };
+
+  const getPerfusionStatus = (pi: number): 'normal' | 'warning' | 'critical' => {
+    if (pi >= 2 && pi <= 10) return 'normal';
+    if (pi >= 1 && pi < 2) return 'warning';
     return 'critical';
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
-      {/* Header */}
-      <header className="border-b border-gray-200 bg-white/80 backdrop-blur-md dark:border-gray-700 dark:bg-gray-800/80">
+    <div className="min-h-screen bg-white">
+      <header className="border-b border-gray-200 bg-white/80 backdrop-blur-md">
         <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-                ❤️ Heart Health Monitor
-              </h1>
-              <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-                Real-time vital signs monitoring
-              </p>
+              <h1 className="text-3xl font-bold text-gray-900">❤️ Heart Health Monitor</h1>
+              <p className="mt-1 text-sm text-gray-600">Login to start the assessment flow.</p>
             </div>
-            <div className="text-right">
-              <div className="text-sm font-medium text-gray-900 dark:text-white">
-                Last Updated
-              </div>
-              <div className="text-xs text-gray-600 dark:text-gray-400">
-                {mounted ? lastUpdated.toLocaleTimeString() : '-'}
-              </div>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+              <Link
+                href="/questionnaire"
+                className="inline-flex items-center justify-center rounded-full bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow hover:bg-blue-700 transition"
+              >
+                Start Questionnaire
+              </Link>
+              <button
+                onClick={handleLogout}
+                className="inline-flex items-center justify-center rounded-full bg-red-600 px-5 py-3 text-sm font-semibold text-white shadow hover:bg-red-700 transition"
+              >
+                Logout
+              </button>
             </div>
+          </div>
+          <div className="mt-4 flex flex-wrap gap-3 text-sm text-gray-600">
+            <span>Logged in as {userData?.fullName}</span>
+            <span>Age: {userData?.age}</span>
+            <span>Gender: {userData?.gender}</span>
           </div>
         </div>
       </header>
 
-      {/* Main Dashboard */}
       <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        {/* Metrics Grid */}
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
           <MetricCard
             title="Heart Rate"
             value={metrics.heartRate}
-            unit="BPM"
-            icon="💓"
+            unit="bpm"
+            icon="❤️"
             status={getHeartRateStatus(metrics.heartRate)}
-            normalRange="60-100 BPM"
+            normalRange="60-100"
           />
-
           <MetricCard
-            title="Oxygen Level"
+            title="SpO2 Level"
             value={metrics.oxygenLevel}
             unit="%"
             icon="🫁"
             status={getOxygenStatus(metrics.oxygenLevel)}
-            normalRange="95-100%"
+            normalRange="95-100"
           />
-
           <MetricCard
             title="Respiratory Rate"
             value={metrics.respiratoryRate}
             unit="breaths/min"
-            icon="🌬️"
+            icon="💨"
             status={getRespiratoryStatus(metrics.respiratoryRate)}
-            normalRange="12-20 breaths/min"
+            normalRange="12-20"
+          />
+          <MetricCard
+            title="Perfusion Index"
+            value={Math.round(metrics.perfusionIndex * 10) / 10}
+            unit=""
+            icon="💫"
+            status={getPerfusionStatus(metrics.perfusionIndex)}
+            normalRange="2-10"
           />
         </div>
 
-        {/* ECG Waveform Monitor */}
-        <div className="mt-8">
-          <ECGWaveform heartRate={metrics.heartRate} />
-        </div>
-
-        {/* Info Section */}
-        <div className="mt-8 rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
-          <h2 className="mb-4 text-xl font-semibold text-gray-900 dark:text-white">
-            📊 About Your Vitals
-          </h2>
-          <div className="grid gap-4 md:grid-cols-3">
-            <div>
-              <h3 className="mb-2 font-medium text-gray-900 dark:text-white">Heart Rate (BPM)</h3>
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                Measures the number of times your heart beats per minute. A normal resting heart rate ranges from 60 to 100 BPM.
-              </p>
-            </div>
-            <div>
-              <h3 className="mb-2 font-medium text-gray-900 dark:text-white">Oxygen Saturation (SpO2)</h3>
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                Indicates the percentage of oxygen in your blood. Normal levels are 95% or higher.
-              </p>
-            </div>
-            <div>
-              <h3 className="mb-2 font-medium text-gray-900 dark:text-white">Respiratory Rate</h3>
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                The number of breaths you take per minute. Normal range is 12 to 20 breaths per minute.
-              </p>
-            </div>
+        <div className="mt-8 rounded-3xl border border-gray-200 bg-slate-50 p-6 shadow-sm">
+          <h2 className="mb-4 text-xl font-semibold text-gray-900">Assessment Flow</h2>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <Link
+              href="/questionnaire"
+              className="rounded-3xl bg-blue-600 px-5 py-6 text-center text-sm font-semibold text-white shadow hover:bg-blue-700 transition"
+            >
+              Questionnaire
+            </Link>
+            <Link
+              href="/measurement"
+              className="rounded-3xl bg-indigo-600 px-5 py-6 text-center text-sm font-semibold text-white shadow hover:bg-indigo-700 transition"
+            >
+              MAX30102 Measurement
+            </Link>
+            <Link
+              href="/thermal-processing"
+              className="rounded-3xl bg-amber-600 px-5 py-6 text-center text-sm font-semibold text-white shadow hover:bg-amber-700 transition"
+            >
+              Thermal Processing
+            </Link>
+            <Link
+              href="/final-result"
+              className="rounded-3xl bg-green-600 px-5 py-6 text-center text-sm font-semibold text-white shadow hover:bg-green-700 transition"
+            >
+              Final Result
+            </Link>
           </div>
-        </div>
-
-        {/* Status Legend */}
-        <div className="mt-6 rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
-          <h3 className="mb-4 text-lg font-semibold text-gray-900 dark:text-white">Status Indicators</h3>
-          <div className="flex flex-wrap gap-6">
-            <div className="flex items-center gap-2">
-              <span className="h-4 w-4 rounded-full bg-green-500"></span>
-              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Normal - All vitals within healthy range</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="h-4 w-4 rounded-full bg-yellow-500"></span>
-              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Warning - Vitals slightly outside normal range</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="h-4 w-4 rounded-full bg-red-500"></span>
-              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Critical - Immediate attention needed</span>
-            </div>
-          </div>
+          <p className="mt-4 text-sm text-gray-600">
+            Follow the flow: Login → Questionnaire → MAX30102 Measurement → Thermal Processing → Final Result.
+          </p>
         </div>
       </main>
 
-      {/* Footer */}
-      <footer className="mt-12 border-t border-gray-200 bg-white/80 backdrop-blur-md dark:border-gray-700 dark:bg-gray-800/80">
+      <footer className="mt-12 border-t border-gray-200 bg-white/80 backdrop-blur-md">
         <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-          <p className="text-center text-sm text-gray-600 dark:text-gray-400">
-            ⚕️ Heart Health Monitoring System - For demonstration purposes only. Consult healthcare professionals for medical advice.
+          <p className="text-center text-sm text-gray-600">
+            ⚕️ Heart Health Monitoring System — For demonstration purposes only. Consult healthcare professionals for medical advice.
           </p>
         </div>
       </footer>
